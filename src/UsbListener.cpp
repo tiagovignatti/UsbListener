@@ -27,8 +27,13 @@ void UsbListener::Stop()
 	}
 }
 
+static const GUID UsbGuid =
+{
+	// GUID_DEVINTERFACE_USB_DEVICE
+	0xA5DCBF10, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED },
+};
 
-static const GUID UsbGuid = {	0xa5dcbf10,	0x6530,	0x11d2,	{ 0x90, 0x1f, 0x00, 0xc0, 0x4f, 0xb9, 0x51,0xed }};const std::regex usbNamePatternReg("\\\\?\\USB#VID_(\\w+)&PID_(\\w+)");
+const std::regex usbNamePatternReg("\\\\?\\USB#VID_(\\w+)&PID_(\\w+)");
 bool GetVidPidByDeviceName(const std::string & inStr, uint16_t & vid, uint16_t & pid)
 {
 	std::smatch res;
@@ -178,4 +183,3 @@ std::shared_ptr<UsbListener> UsbListener::GetInstance()
 	}
 	return instance;
 }
-
