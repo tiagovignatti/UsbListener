@@ -15,26 +15,6 @@
 std::shared_ptr<UsbListener> UsbListener::instance = nullptr;
 std::mutex UsbListener::instanceMutex;
 
-std::string getFriendlyName(wchar_t* name)
-{
-	HDEVINFO deviceList = SetupDiCreateDeviceInfoList(NULL, NULL);
-	SP_DEVICE_INTERFACE_DATA deviceInterfaceData;
-	SetupDiOpenDeviceInterfaceW(deviceList, name, NULL, &deviceInterfaceData);
-	SP_DEVINFO_DATA deviceInfo;
-	ZeroMemory(&deviceInfo, sizeof(SP_DEVINFO_DATA));
-	deviceInfo.cbSize = sizeof(SP_DEVINFO_DATA);
-	SetupDiEnumDeviceInfo(deviceList, 0, &deviceInfo);
-
-	DWORD size = 0;
-	SetupDiGetDeviceRegistryPropertyA(deviceList, &deviceInfo, SPDRP_DEVICEDESC, NULL, NULL, NULL, &size);
-	BYTE* buffer = new BYTE[size];
-	SetupDiGetDeviceRegistryPropertyA(deviceList, &deviceInfo, SPDRP_DEVICEDESC, NULL, buffer, size, NULL);
-	std::string deviceDesc = (char*)buffer;
-	delete[] buffer;
-
-	return deviceDesc;
-}
-
 UsbListener::UsbListener()
 {
 	init = false;
@@ -52,14 +32,13 @@ UsbListener::UsbListener()
 		while (SetupDiEnumDeviceInterfaces(devicesHandle, NULL, &GUID_DEVINTERFACE_USB_DEVICE, deviceNumber++, &devinterfaceData))
 		{
 			DWORD bufSize = 0;
-			SetupDiGetDeviceInterfaceDetailW(devicesHandle, &devinterfaceData, NULL, NULL, &bufSize, NULL);
+			SetupDiGetDeviceInterfaceDetail(devicesHandle, &devinterfaceData, NULL, NULL, &bufSize, NULL);
 			BYTE* buffer = new BYTE[bufSize];
-			PSP_DEVICE_INTERFACE_DETAIL_DATA_W devinterfaceDetailData = (PSP_DEVICE_INTERFACE_DETAIL_DATA_W)buffer;
+			PSP_DEVICE_INTERFACE_DETAIL_DATA devinterfaceDetailData = (PSP_DEVICE_INTERFACE_DETAIL_DATA)buffer;
 			devinterfaceDetailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
-			SetupDiGetDeviceInterfaceDetailW(devicesHandle, &devinterfaceData, devinterfaceDetailData, bufSize, NULL, NULL);
+			SetupDiGetDeviceInterfaceDetail(devicesHandle, &devinterfaceData, devinterfaceDetailData, bufSize, NULL, NULL);
 
-			wchar_t* name = devinterfaceDetailData->DevicePath;
-			std::cout << "device: " << getFriendlyName(name) << std::endl;
+			std::cout << "device: " << devinterfaceDetailData->DevicePath << std::endl;
 		}
 	}
 }
