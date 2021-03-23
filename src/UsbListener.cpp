@@ -5,13 +5,63 @@
 #include <stdexcept>
 #include <sstream>
 #include <regex>
+#include <initguid.h>
+#include <Usbiodef.h>
+#include <SetupAPI.h>
+#include <iostream>
+
+#pragma comment (lib, "Setupapi.lib")
 
 std::shared_ptr<UsbListener> UsbListener::instance = nullptr;
 std::mutex UsbListener::instanceMutex;
 
+std::string getFriendlyName(wchar_t* name)
+{
+	HDEVINFO deviceList = SetupDiCreateDeviceInfoList(NULL, NULL);
+	SP_DEVICE_INTERFACE_DATA deviceInterfaceData;
+	SetupDiOpenDeviceInterfaceW(deviceList, name, NULL, &deviceInterfaceData);
+	SP_DEVINFO_DATA deviceInfo;
+	ZeroMemory(&deviceInfo, sizeof(SP_DEVINFO_DATA));
+	deviceInfo.cbSize = sizeof(SP_DEVINFO_DATA);
+	SetupDiEnumDeviceInfo(deviceList, 0, &deviceInfo);
+
+	DWORD size = 0;
+	SetupDiGetDeviceRegistryPropertyA(deviceList, &deviceInfo, SPDRP_DEVICEDESC, NULL, NULL, NULL, &size);
+	BYTE* buffer = new BYTE[size];
+	SetupDiGetDeviceRegistryPropertyA(deviceList, &deviceInfo, SPDRP_DEVICEDESC, NULL, buffer, size, NULL);
+	std::string deviceDesc = (char*)buffer;
+	delete[] buffer;
+
+	return deviceDesc;
+}
+
 UsbListener::UsbListener()
 {
 	init = false;
+
+	// Print out current USB devices attached
+	{
+		HDEVINFO devicesHandle = SetupDiGetClassDevsA(&GUID_DEVINTERFACE_USB_DEVICE, NULL, NULL, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
+		SP_DEVINFO_DATA deviceInfo;
+		ZeroMemory(&deviceInfo, sizeof(SP_DEVINFO_DATA));
+		deviceInfo.cbSize = sizeof(SP_DEVINFO_DATA);
+		DWORD deviceNumber = 0;
+		SP_DEVICE_INTERFACE_DATA devinterfaceData;
+		devinterfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
+
+		while (SetupDiEnumDeviceInterfaces(devicesHandle, NULL, &GUID_DEVINTERFACE_USB_DEVICE, deviceNumber++, &devinterfaceData))
+		{
+			DWORD bufSize = 0;
+			SetupDiGetDeviceInterfaceDetailW(devicesHandle, &devinterfaceData, NULL, NULL, &bufSize, NULL);
+			BYTE* buffer = new BYTE[bufSize];
+			PSP_DEVICE_INTERFACE_DETAIL_DATA_W devinterfaceDetailData = (PSP_DEVICE_INTERFACE_DETAIL_DATA_W)buffer;
+			devinterfaceDetailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
+			SetupDiGetDeviceInterfaceDetailW(devicesHandle, &devinterfaceData, devinterfaceDetailData, bufSize, NULL, NULL);
+
+			wchar_t* name = devinterfaceDetailData->DevicePath;
+			std::cout << "device: " << getFriendlyName(name) << std::endl;
+		}
+	}
 }
 
 UsbListener::~UsbListener()
